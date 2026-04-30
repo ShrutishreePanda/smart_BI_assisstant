@@ -164,17 +164,17 @@ cd smart-bi-assistant
 ### 2. Create Virtual Environment
 
 ```
-python -m venv .venv
+python -m venv venv
 ```
 
 ### 3. Activate Environment
 
 ```
 # Windows
-.venv\Scripts\activate
+venv\Scripts\activate
 
 # Mac/Linux
-source .venv/bin/activate
+source venv/bin/activate
 ```
 
 ### 4. Install Dependencies
