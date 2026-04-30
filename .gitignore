@@ -4,3 +4,6 @@ __pycache__/
 .env
 .DS_Store
 node_modules/
+# Data files – never commit
+eda/credit_card_transactions.csv
+eda/*.csv
