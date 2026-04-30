@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from threading import Lock
-form fastapi import Fastapi
+
 
 import pandas as pd
 
@@ -9,7 +9,7 @@ import pandas as pd
 _lock = Lock()
 _store: dict[str, pd.DataFrame] = {}
 
-app= Fastapi()
+
 
 def save_df(df: pd.DataFrame) -> None:
     """Store the latest uploaded dataset for this demo app."""
