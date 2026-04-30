@@ -1,6 +1,37 @@
 from __future__ import annotations
 
 import pandas as pd
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+
+from state import get_df
+
+
+router = APIRouter(prefix="/eda", tags=["EDA"])
+
+
+class EDAResponse(BaseModel):
+    shape: list[int]
+    columns: list[str]
+    dtypes: dict[str, str]
+    null_counts: dict[str, int]
+    null_pct: dict[str, float]
+    duplicate_rows: int
+    cardinality: dict[str, int]
+    summary: dict[str, dict[str, object]]
+    value_counts: dict[str, dict[str, int]]
+
+
+class CorrelationResponse(BaseModel):
+    columns: list[str]
+    matrix: list[list[float]]
+
+
+def _load_dataset() -> pd.DataFrame:
+    try:
+        return get_df()
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 def compute_eda(df: pd.DataFrame) -> dict:
@@ -53,3 +84,15 @@ def correlation_matrix(df: pd.DataFrame) -> dict:
         "columns": list(corr.columns),
         "matrix": corr.values.tolist(),
     }
+
+
+@router.get("", response_model=EDAResponse)
+def get_eda() -> dict:
+    """Run exploratory data analysis on the dataset stored in state.py."""
+    return compute_eda(_load_dataset())
+
+
+@router.get("/correlation", response_model=CorrelationResponse)
+def get_correlation() -> dict:
+    """Return a numeric correlation matrix for the stored dataset."""
+    return correlation_matrix(_load_dataset())
