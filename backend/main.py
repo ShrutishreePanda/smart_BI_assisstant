@@ -2,14 +2,13 @@ from __future__ import annotations
 
 from fastapi import FastAPI
 
-from routes.eda import router as eda_router
-from routes.ml import router as ml_router
+from backend.routes.upload import router as upload_router
 
 
 app = FastAPI(title="Smart BI Assistant API")
 
+app.include_router(upload_router)
 app.include_router(eda_router)
-app.include_router(ml_router)
 
 
 @app.get("/health")
