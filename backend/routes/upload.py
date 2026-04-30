@@ -45,5 +45,3 @@ def upload(file: UploadFile = File(...)) -> dict[str, Any]:
     }
 
 
-app = FastAPI(title="Smart BI Assistant Upload API")
-app.include_router(router)
