@@ -1,8 +1,27 @@
 from __future__ import annotations
 
+from typing import Any
+
+import numpy as np
 import pandas as pd
 from fastapi import APIRouter, HTTPException
 from backend.state import get_df
+
+
+def json_safe(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {str(key): json_safe(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [json_safe(item) for item in value]
+    if isinstance(value, tuple):
+        return [json_safe(item) for item in value]
+    if isinstance(value, (np.integer,)):
+        return int(value)
+    if isinstance(value, (np.floating,)):
+        return None if not np.isfinite(value) else float(value)
+    if pd.isna(value):
+        return None
+    return value
 
 
 def compute_eda(df: pd.DataFrame) -> dict:
@@ -15,7 +34,8 @@ def compute_eda(df: pd.DataFrame) -> dict:
     null_counts = df.isna().sum()
     null_pct = (null_counts / len(df) * 100).round(2)
     cardinality = df.nunique(dropna=True)
-    summary = df.describe(include="all").where(pd.notnull(df.describe(include="all")), None)
+    summary = df.describe(include="all").replace([np.inf, -np.inf], np.nan)
+    summary = summary.astype(object).where(pd.notnull(summary), None)
 
     value_counts = {}
     for column in df.columns:
@@ -25,7 +45,7 @@ def compute_eda(df: pd.DataFrame) -> dict:
                 str(key): int(value) for key, value in counts.to_dict().items()
             }
 
-    return {
+    return json_safe({
         "shape": [int(df.shape[0]), int(df.shape[1])],
         "columns": list(df.columns),
         "dtypes": {column: str(dtype) for column, dtype in df.dtypes.items()},
@@ -41,7 +61,7 @@ def compute_eda(df: pd.DataFrame) -> dict:
         },
         "summary": summary.to_dict(),
         "value_counts": value_counts,
-    }
+    })
 
 
 def correlation_matrix(df: pd.DataFrame) -> dict:
@@ -50,11 +70,11 @@ def correlation_matrix(df: pd.DataFrame) -> dict:
     if numeric_df.shape[1] < 2:
         return {"columns": [], "matrix": []}
 
-    corr = numeric_df.corr().round(3)
-    return {
+    corr = numeric_df.corr().round(3).replace([np.inf, -np.inf], np.nan)
+    return json_safe({
         "columns": list(corr.columns),
         "matrix": corr.values.tolist(),
-    }
+    })
 
 
 eda_router = APIRouter(prefix="/eda", tags=["EDA"])
