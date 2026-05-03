@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 from fastapi import APIRouter, HTTPException
-from state import get_df
+from backend.state import get_df
 
 
 def compute_eda(df: pd.DataFrame) -> dict:
