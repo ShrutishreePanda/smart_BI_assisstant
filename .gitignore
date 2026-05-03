@@ -8,3 +8,9 @@ node_modules/
 .venv/
 backend_server.err.log
 backend_server.log
+backend_server_8001.log
+backend_server_8001.err.log
+streamlit_8502.err.log
+streamlit_8502.log
+streamlit_server.err.log
+streamlit_server.log
