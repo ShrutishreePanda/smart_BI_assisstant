@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import pandas as pd
-from fastapi import APIRouter, HTTPException,FastAPI
+from fastapi import APIRouter, HTTPException
+from state import get_df
 
 
 def compute_eda(df: pd.DataFrame) -> dict:
@@ -67,7 +68,7 @@ def eda_summary():
     Return full EDA summary for the unified dataset.
     """
     try:
-        df = pd.read_csv(DATA_PATH)
+        df = get_df()
         return compute_eda(df)
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Feature dataset not found")
@@ -81,7 +82,7 @@ def eda_correlation():
     Return correlation matrix for numeric features.
     """
     try:
-        df = pd.read_csv(DATA_PATH)
+        df = get_df()
         return correlation_matrix(df)
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Feature dataset not found")
