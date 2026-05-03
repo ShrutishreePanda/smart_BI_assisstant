@@ -4,7 +4,7 @@ from backend.state import get_df
 router = APIRouter(prefix="/visualize", tags=["Visualization"])
  
  
-@router.get("/")
+@router.get("")
 def visualize():
     try:
         df = get_df()
