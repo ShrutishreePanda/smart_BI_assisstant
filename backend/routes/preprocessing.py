@@ -5,21 +5,23 @@ from sklearn.preprocessing import StandardScaler
 def preprocess(df, target=None):
     df = df.copy()
 
-    # Drop ID columns
+    # Drop ID-like columns
     df = df.drop(columns=[c for c in df.columns if "id" in c.lower()], errors="ignore")
 
-    # One-hot encoding
-    df = pd.get_dummies(df, drop_first=True)
-
-    if target and target in df.columns:
-        X = df.drop(columns=[target])
+    if target:
+        if target not in df.columns:
+            return None, None, None
         y = df[target]
+        X = df.drop(columns=[target])
     else:
         X = df
         y = None
 
-    # Standardization
+    # 🔹 One-hot encode ONLY features
+    X = pd.get_dummies(X, drop_first=True)
+
+    # 🔹 Standardization
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
 
-    return X_scaled, y
+    return X_scaled, y, X.columns
