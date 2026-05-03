@@ -1,74 +1,30 @@
 from __future__ import annotations
 
 from typing import Any, Literal
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
-from pydantic import BaseModel, Field
+from backend.state import get_df
+from backend.routes.preprocessing import preprocess
+
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression, LinearRegression
+from sklearn.cluster import KMeans
+from sklearn.metrics import accuracy_score, r2_score, silhouette_score
 
 
-# These are the only ML models planned for this MVP:
-# - Logistic Regression: classification, used for binary/categorical targets.
-# - Linear Regression: regression, used for continuous numeric targets.
-# - K-Means: clustering, used when no target column is selected.
+router = APIRouter(prefix="/ml", tags=["ML"])
+
+
+# ------------------ SCHEMAS ------------------
+
 ModelName = Literal["Logistic Regression", "Linear Regression", "K-Means"]
 TaskName = Literal["classification", "regression", "clustering"]
 
 
-class UploadResponse(BaseModel):
-    columns: list[str]
-    shape: list[int]
-    dtypes: dict[str, str]
-    preview: list[dict[str, Any]]
-
-
-class EDAResponse(BaseModel):
-    shape: list[int]
-    columns: list[str]
-    dtypes: dict[str, str]
-    null_counts: dict[str, int]
-    null_pct: dict[str, float]
-    duplicate_rows: int
-    cardinality: dict[str, int]
-    summary: dict[str, dict[str, Any]]
-    value_counts: dict[str, dict[str, int]]
-
-
-class CleanResponse(BaseModel):
-    rows_before: int
-    rows_after: int
-    rows_removed: int
-    nulls_before: int
-    nulls_after: int
-
-
 class TrainRequest(BaseModel):
-    target: str | None = Field(
-        default=None,
-        description="Selected target column. Leave null to run K-Means clustering.",
-    )
-    k: int = Field(
-        default=3,
-        ge=2,
-        le=6,
-        description="Number of clusters for K-Means when target is null.",
-    )
-
-
-class SupervisedResult(BaseModel):
-    task: Literal["classification", "regression"]
-    model: Literal["Logistic Regression", "Linear Regression"]
-    target: str
-    metrics: dict[str, float]
-    coefficients: dict[str, float]
-
-
-class ClusteringResult(BaseModel):
-    task: Literal["clustering"]
-    model: Literal["K-Means"]
-    k: int
-    inertia: float
-    silhouette: float
-    cluster_sizes: dict[str, int]
-    cluster_summary: dict[str, dict[str, float]]
+    target: str | None = None
+    k: int = 3
 
 
 class TrainResponse(BaseModel):
@@ -76,3 +32,90 @@ class TrainResponse(BaseModel):
     model: ModelName
     result: dict[str, Any]
     insights: list[str]
+
+
+# ------------------ ROUTE ------------------
+
+@router.post("/train", response_model=TrainResponse)
+def train(req: TrainRequest):
+    try:
+        df = get_df()
+
+        # -------- SUPERVISED --------
+        if req.target:
+
+            # 🔥 Validate BEFORE preprocessing
+            if req.target not in df.columns:
+                raise ValueError(
+                    f"Target '{req.target}' not found. Available: {list(df.columns)}"
+                )
+
+            X, y, feature_names = preprocess(df, req.target)
+
+            if y is None:
+                raise ValueError("Target extraction failed")
+
+            X_train, X_test, y_train, y_test = train_test_split(
+                X, y, test_size=0.2, random_state=42
+            )
+
+            # Classification
+            if y.nunique() <= 10:
+                model = LogisticRegression(max_iter=1000)
+                model.fit(X_train, y_train)
+
+                pred = model.predict(X_test)
+                acc = accuracy_score(y_test, pred)
+
+                return {
+                    "task": "classification",
+                    "model": "Logistic Regression",
+                    "result": {"accuracy": float(acc)},
+                    "insights": [
+                        "Model trained successfully",
+                        "Binary classification (fraud detection)"
+                    ]
+                }
+
+            # Regression
+            else:
+                model = LinearRegression()
+                model.fit(X_train, y_train)
+
+                pred = model.predict(X_test)
+                r2 = r2_score(y_test, pred)
+
+                return {
+                    "task": "regression",
+                    "model": "Linear Regression",
+                    "result": {"r2": float(r2)},
+                    "insights": [
+                        "Model trained successfully",
+                        "Regression task"
+                    ]
+                }
+
+        # -------- UNSUPERVISED --------
+        else:
+            X, _, _ = preprocess(df, None)
+
+            model = KMeans(n_clusters=req.k, random_state=42)
+            labels = model.fit_predict(X)
+
+            silhouette = silhouette_score(X, labels)
+
+            return {
+                "task": "clustering",
+                "model": "K-Means",
+                "result": {
+                    "clusters": req.k,
+                    "silhouette": float(silhouette)
+                },
+                "insights": [
+                    "Clustering completed",
+                    "Customer segmentation performed"
+                ]
+            }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
