@@ -54,6 +54,11 @@ def upload_file(file) -> dict:
             "columns": data.get("column_names", []),
             "dtypes": data.get("dtypes", {}),
             "preview": data.get("preview", []),
+            "raw_rows": data.get("raw_rows", 0),
+            "raw_columns": data.get("raw_columns", 0),
+            "generated_file": data.get("generated_file", ""),
+            "feature_mappings": data.get("feature_mappings", {}),
+            "raw_eda": data.get("raw_eda", {}),
         }
     except requests.exceptions.ConnectionError:
         return {"success": False, "message": "Cannot connect to the backend. Is the server running?"}
@@ -112,9 +117,14 @@ def get_visualizations(target_column: str, file_id: Optional[str] = None) -> dic
         return {"success": False, "charts": [], "message": f"Unexpected error: {exc}"}
 
 
-def run_ml(target: str | None = None, k: int = 3) -> dict:
+def run_ml(
+    target: str | None = None,
+    k: int = 3,
+    features: list[str] | None = None,
+    model: str = "Auto",
+) -> dict:
     try:
-        payload = {"target": target, "k": k}
+        payload = {"target": target, "k": k, "features": features or None, "model": model}
         response = requests.post(
             f"{BASE_URL}/ml/train",
             json=payload,
